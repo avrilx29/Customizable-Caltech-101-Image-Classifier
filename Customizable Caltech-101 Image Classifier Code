@@ -1,6 +1,6 @@
 """
 Customizable Caltech-101 Image Classifier
-Author: Avril
+Creator: Avril
 Description: An interactive image classifier that allows users to dynamically select categories 
 and subsets from the Caltech-101 dataset to train a custom fastai computer vision model.
 """
