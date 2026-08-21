@@ -202,8 +202,8 @@ def predictions(x, y):
         plt.imshow(img_to_show)
         plt.axis('off')        
         title_color = 'red' if predicted_class == 'neither' else 'green'
-        status = f"✨ Match: {predicted_class}" if title_color == 'green' else "❌ Classified: Neither"        
-        plt.title(f"{status}\n📈 Confidence: {confidence:.2%}", fontsize=12, color=title_color)            
+        status = f" Match: {predicted_class}" if title_color == 'green' else "Classified: Neither"        
+        plt.title(f"{status}\n Confidence: {confidence:.2%}", fontsize=12, color=title_color)            
     plt.tight_layout()
     plt.show()
         
