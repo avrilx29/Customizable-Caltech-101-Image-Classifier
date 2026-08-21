@@ -1,0 +1,229 @@
+"""
+Customizable Caltech-101 Image Classifier
+Author: Avril
+Description: An interactive image classifier that allows users to dynamically select categories 
+and subsets from the Caltech-101 dataset to train a custom fastai computer vision model.
+"""
+
+from fastai.vision.all import *
+import pandas as pd
+import random
+import matplotlib.pyplot as plt
+
+animal_subsets = [
+        "ant", "beaver", "brontosaurus", "butterfly", "cougar_body", "cougar_face", 
+        "crab", "crayfish", "crocodile", "crocodile_head", "dalmatian", "dragonfly", 
+        "elephant", "emu", "flamingo", "flamingo_head", "garfield", "hawksbill", 
+        "hedgehog", "ibis", "kangaroo", "leopards", "llama", "lobster", "mayfly", 
+        "nautilus", "octopus", "okapi", "panda", "pigeon", "porcupine", "python", 
+        "python_mexican", "rhino", "rooster", "scorpion", "sea_horse", "snoopy", 
+        "starfish", "stegosaurus", "tick", "trilobite", "wild_cat"
+    ]
+
+vehicle_subsets = [
+        "airplanes", "car_side", "ferry", "helicopter", "inline_skate", 
+        "ketch", "motorbikes", "schooner"
+    ]
+
+food_and_plants_subsets = [
+        "bonsai", "geranium", "joshua_tree", "lotus", "pizza", 
+        "pomegranate", "strawberry", "sunflower", "water_lilly"
+    ]
+
+objects_and_electronics_subsets = [
+        "accordion", "anchor", "barrel", "bass", "binocular", "camera", "cannon", 
+        "ceiling_fan", "cellphone", "chair", "chandelier", "cup", "electric_guitar", 
+        "euphonium", "ewer", "gramophone", "grand_piano", "headphone", "lamp", 
+        "laptop", "mandolin", "menorah", "metronome", "plate", "renet", "revolver", 
+        "saxophone", "soccer_ball", "stapler", "stop_sign", "umbrella", "watch", 
+        "wheelchair", "windsor_chair", "wrench"
+    ]
+
+architecture_and_culture_subsets = [
+        "brain", "buddha", "faces", "faces_easy", "minaret", "pagoda"
+    ]
+
+caltech101_categories = {
+    "animals": animal_subsets,
+    "vehicles": vehicle_subsets,
+    "food_and_plants": food_and_plants_subsets,
+    "objects_and_electronics": objects_and_electronics_subsets,
+    "architecture_and_culture": architecture_and_culture_subsets,
+}
+
+path = untar_data(URLs.CALTECH_101)
+all_files = get_image_files(path)
+
+categories = []
+chosen_subsets = []
+
+def get_category(x):
+    #Asks the user to select specific main categories from the available options.
+    for _ in range(x):
+        while True:
+            print("These are the available categories, please enter one")
+            specific_category = input("animals, vehicles, food_and_plants, objects_and_electronics, architecture_and_culture: ").strip().lower()
+            print()
+            if specific_category in caltech101_categories:
+                categories.append(specific_category)
+                break
+            else:
+                print("Category not found, try entering '_' instead of spaces")
+                print()
+                continue
+        
+def amount_of_categories():
+    #Asks the user how many categories they want to explore.
+    while True:
+        try:
+            number_of_categories = int(input("How many categories would you like to see?: "))
+            print()
+            if 0 <= number_of_categories <= 5:
+                break
+            elif number_of_categories > 5 or number_of_categories < 0:
+                print("Please enter positive number less than 5")
+                print()
+                continue
+        except ValueError:
+            print("Please enter an integer number")
+            print()
+            continue
+    return number_of_categories
+
+def show_subset(x):
+    #Displays all available sub-categories within the user's chosen categories.
+    start = 0
+    for _ in range(len(categories)):
+        print(f"These are the subsets in {categories[start]}: ")
+        print(", ".join(caltech101_categories.get(categories[start])))
+        print()
+        start += 1
+
+def amount_of_subsets():
+    #Asks the user how many subsets they want to classify.
+    while True:
+        try:
+            number_of_subsets = int(input("How many subsets would you like to classify?: "))
+            print()
+            if 0 <= number_of_subsets <= 101:
+                break
+            elif number_of_subsets > 101 or number_of_subsets < 0:
+                print("Please enter positive number less than 101")
+                print()
+                continue
+        except ValueError:
+            print("Please enter an integer number")
+            print()
+            continue
+    return number_of_subsets
+
+def get_subsets(x):
+    #Asks the user to pick specific subsets from their chosen categories.
+    start = 0
+    for _ in range(x):
+        while True:
+            category = input("Please enter the category you would like to choose your subset from: ").strip().lower()
+            if category in caltech101_categories:
+                subset = input("Please enter a subset you would like to classify: ").strip().lower()
+                print()
+                if subset in caltech101_categories.get(category):
+                    chosen_subsets.append(subset)   
+                    break
+                else:
+                    print("Subset not found in chosen category")
+                    print()
+                    continue
+            else:
+                print("Category not found")
+                print()
+                continue
+
+def filtering_data():
+    #Filters all image files to match the user's chosen subsets and returns a pandas DataFrame with file paths and labels.
+    filtered_data = []
+    for f in all_files:
+        folder_name = f.parent.name.lower()
+        if folder_name in chosen_subsets:
+            filtered_data.append({'full_path': f, 'label': folder_name})
+    return pd.DataFrame(filtered_data)
+
+def check_images(x):
+    #Validates that image files were successfully found for the selected subsets.
+    if len(x) == 0:
+        print("No images found for the selected subsets. Please check your spelling.")
+        return False
+    return True
+
+def datablock(x):
+    #Sets up the fastai DataBlock and DataLoaders for training.
+    dls = DataBlock(
+        blocks=(ImageBlock, CategoryBlock),
+        get_x=ColReader('full_path'),
+        get_y=ColReader('label'), 
+        splitter=RandomSplitter(valid_pct=0.2, seed=42),
+        item_tfms=[Resize(192, method='squish')]
+    ).dataloaders(x, bs=64)
+    return dls
+
+def train_classifier(x):
+    #Initializes and trains a custom ResNet18 computer vision model.
+    using the provided DataLoaders.
+    print("Training custom classifier for subsets: ")
+    print(*chosen_subsets, sep = ", ")
+    print("...")
+    learn = vision_learner(x, resnet18, metrics=error_rate).to_fp16()
+    learn.fine_tune(3)
+    print("Model training successfully completed!")
+    return learn
+
+def get_subset_samples(x):
+    #Pulls a random sample image path from each chosen subset. 
+    to be used for visual test predictions.
+    print("Generating visual test predictions...")
+    sample_images = []
+    for subset in chosen_subsets:
+        subset_df = x[x['label'] == subset]
+        if not subset_df.empty:
+            random_row = subset_df.sample(n=1).iloc[0]
+            sample_images.append(random_row['full_path'])
+    return sample_images
+
+def predictions(x, y):
+    #Runs model predictions on the sample images and plots the results with confidence scores using Matplotlib.
+    num_images = len(y)
+    plt.figure(figsize=(5 * num_images, 5))  
+    for i, img_path in enumerate(y):
+        img = PILImage.create(img_path)
+        predicted_class, _, probs = x.predict(img)        
+        class_idx = x.dls.vocab.o2i[predicted_class]
+        confidence = probs[class_idx]        
+        plt.subplot(1, num_images, i + 1)
+        img_to_show = plt.imread(img_path)
+        plt.imshow(img_to_show)
+        plt.axis('off')        
+        title_color = 'red' if predicted_class == 'neither' else 'green'
+        status = f"✨ Match: {predicted_class}" if title_color == 'green' else "❌ Classified: Neither"        
+        plt.title(f"{status}\n📈 Confidence: {confidence:.2%}", fontsize=12, color=title_color)            
+    plt.tight_layout()
+    plt.show()
+        
+def main():
+    #Coordinates the workflow, handles user input, filters data, trains the model, and produces a visual prediction output.
+    name = input("What's your name?: ").strip().title()
+    print(f"Hello {name}, this is an interactive classifier!")
+    print("There are 5 categories with 101 subsets to choose from!")
+    get_category(amount_of_categories())
+    show_subset(len(categories))
+    get_subsets(amount_of_subsets())
+    df = filtering_data()
+    if not check_images(df):
+        return
+    print(f"Total images found: {len(df)}")
+    print(df['label'].value_counts())  
+    dls = datablock(df)
+    learn = train_classifier(dls)
+    sample_images = get_subset_samples(df)
+    predictions(learn, sample_images)
+
+if __name__ == "__main__":
+    main()
